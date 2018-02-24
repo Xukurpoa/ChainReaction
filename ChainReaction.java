@@ -9,42 +9,43 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * @author Tom Mroz
- * Simulates the game of Chain Reaction in a 10x11 grid
+ * Simulates the game of Chain Reaction in a 11x11 grid
  * Supports up to 8 players
- * Poor bounds for the balls
  * terrible intro gui
  * Now actually winnable
- * @version 1.6
+ * @version 1.7
  */
 public class ChainReaction extends JPanel {
     private ArrayList<Player> playerList = new ArrayList<>();
     private static int[] bounds = new int[4];
-    private static Color[] colors = new Color[9];
+    private static ArrayList<Color> colors = new ArrayList<>(9);
     private static final int height = 700;
     private static final int width = 625;
     private static int currentPlayer;
+    private static int playerAmount;
     static Frame frame;
     private Ball[][] board;
     private LinkedBlockingQueue<ExplodeEvent> explodeQueue;
 
+
     private ChainReaction() {
-        colors[0] = Color.RED;
-        colors[1] = new Color(0, 120, 0);
-        colors[2] = Color.BLUE;
-        colors[3] = Color.YELLOW;
-        colors[4] = Color.WHITE;
-        colors[5] = Color.ORANGE;
-        colors[6] = Color.MAGENTA;
-        colors[7] = Color.CYAN;
-        colors[8] = Color.BLACK;
+        colors.add(Color.RED );
+        colors.add(new Color(0, 120, 0));
+        colors.add(Color.BLUE);
+        colors.add(Color.YELLOW);
+        colors.add(Color.WHITE );
+        colors.add(Color.ORANGE);
+        colors.add(Color.MAGENTA);
+        colors.add(Color.CYAN );
+        colors.add(Color.BLACK);
 
         setLayout(new BorderLayout(3, 3));
         setPreferredSize(new Dimension(625, 700));
-        DrawingLoop game = new DrawingLoop(currentPlayer);
+        DrawingLoop game = new DrawingLoop(playerAmount);
 
         add(game, BorderLayout.CENTER);
         JLabel message = new JLabel("CHAIN REACTION", JLabel.CENTER);
-        message.setForeground(colors[4]);
+        message.setForeground(colors.get(4));
         message.setFont(new Font("Monospaced", Font.BOLD, 36));
         message.setOpaque(false);
         add(message, BorderLayout.NORTH);
@@ -66,7 +67,6 @@ public class ChainReaction extends JPanel {
         content.add(menu);
         frame.pack();
 
-
     }
 
     /**
@@ -76,7 +76,7 @@ public class ChainReaction extends JPanel {
      */
     static void createWindow(int players) {
         frame = new Frame("Chain Reaction");
-        currentPlayer = players;
+        playerAmount = players;
         JPanel content = new JPanel();
         frame.setContentPane(content);
         ChainReaction displayPanel = new ChainReaction();
@@ -95,9 +95,10 @@ public class ChainReaction extends JPanel {
         DrawingLoop(int playerCount) {
             setBackground(Color.BLACK);
             for (int x = 0; x < playerCount; x++) {
-                playerList.add(new Player("TOM", ChainReaction.colors[x]));
+                playerList.add(new Player("TOM", ChainReaction.colors.get(x)));
             }
             currentPlayer = 0;
+            playerAmount--;
             startNewGame();
         }
 
@@ -129,38 +130,39 @@ public class ChainReaction extends JPanel {
          */
         public void paintComponent(Graphics g) {
             super.paintComponent(g);
-            g.setColor(colors[currentPlayer]);
+            g.setColor((playerList.get(currentPlayer)).getPlayerColor());
             Graphics2D g2 = (Graphics2D) g;
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             int length = (int) (width * .07);
             int a = length;
             int down = 65;
             bounds[0] = length;
-            g.drawLine(length, down, length, 615);
+            g.drawLine(length - 1, down - 1, length - 1, 614);
             //vertical lines
             for (int x = 0; x < 11; x++) {
 
                 board[0][x].setHorizontalLine(length);
                 length = length + (int) (width * .08);
-                g.drawLine(length, down, length, 615);
+                g.drawLine(length - 1, down - 1, length - 1, 614);
             }
 
             bounds[1] = length + 2;
             bounds[2] = down;
             //horizontal lines
             for (int x = 0; x < 11; x++) {
-                g.drawLine(a, down, length, down);
+                g.drawLine(a - 1, down - 1, length - 1, down - 1);
                 board[x][0].setVerticalLine(down);
                 down = down + (int) (width * .08);
             }
             g.drawLine(a, down, length, down);
+
             for (int x = 0; x < board.length; x++) {
                 for (int y = 0; y < board[0].length; y++) {
                     if (board[x][y].getValue() != 0) {
 
                         g.setColor(board[x][y].getBallColor());
-                        g.fillOval(((board[x][0].getVerticalLine())) - 15, (board[0][y].getHorizontalLine()) + 30, 35, 35);
-                        g.drawString(String.valueOf(board[x][y].getValue()), ((board[x][0].getVerticalLine()) - 15), (board[0][y].getHorizontalLine()) + 30);
+                        g.fillOval(((board[0][x].getHorizontalLine())) + 5, (board[y][0].getVerticalLine()) + 5, 40, 40);
+                        g.drawString(String.valueOf(board[x][y].getValue()), ((board[0][x].getHorizontalLine()) + 5), (board[y][0].getVerticalLine()) + 5);
 
                     }
 
@@ -175,12 +177,9 @@ public class ChainReaction extends JPanel {
      */
     private class GameLoop implements MouseListener {
 
-
         GameLoop() {
-
             addMouseListener(this);
         }
-
 
         public void mouseReleased(MouseEvent evt) {
             int locationX = evt.getX();
@@ -203,7 +202,6 @@ public class ChainReaction extends JPanel {
 
         /**
          * Called after a mouse click, places the balls, and controls the flow of logic
-         *
          * @param x     x coordinate of the mouse click
          * @param y     y coordinate of the mouse click
          * @param color Color of the ball placed
@@ -217,14 +215,17 @@ public class ChainReaction extends JPanel {
             }
             if (moveLegal) {
                 for (int a = 0; a < board.length - 1; a++) {
-                    if ((((board[a][0].getVerticalLine()) <= x)) && ((board[a + 1][0].getVerticalLine()) >= x)) {
-                        xBallPosition = a;
+                    if ((((board[0][a].getHorizontalLine()) <= x)) && ((board[0][a + 1].getHorizontalLine()) >= x)) {
+                        xBallPosition = a ;
                     }
                 }
                 for (int a = 0; a < board[0].length - 1; a++) {
-                    if ((((board[0][a].getHorizontalLine()) <= y)) && (board[0][a + 1].getHorizontalLine()) >= y) {
+                    if ((((board[a][0].getVerticalLine()) <= y)) && (board[a + 1][0].getVerticalLine()) >= y) {
                         yBallPosition = a - 1;
                     }
+                }
+                if ((y >= 565) && (y < 615)){
+                    yBallPosition = 9;
                 }
                 if ((y >= 615) && (y <= 665)) {
                     yBallPosition = 10;
@@ -233,13 +234,12 @@ public class ChainReaction extends JPanel {
                     xBallPosition = 10;
                 }
                 if (!(color.equals(board[xBallPosition][yBallPosition].getBallColor()) || (board[xBallPosition][yBallPosition].getBallColor() == null))) {
-                    System.out.println("Cannot place there!");
                     return;
                 }
                 board[xBallPosition][yBallPosition].setValue((board[xBallPosition][yBallPosition].getValue()) + 1);
                 board[xBallPosition][yBallPosition].setColor(color);
 
-                if (currentPlayer == playerList.size() - 1) {
+                if (currentPlayer == playerAmount) {
                     currentPlayer = 0;
                 } else {
                     currentPlayer++;
@@ -291,6 +291,7 @@ public class ChainReaction extends JPanel {
         if ((board[a][b].getValue() >= board[a][b].getMaxValue())) {
             explodeQueue.add(new ExplodeEvent(a, b));
         }
+
     }
 
     /**
@@ -355,7 +356,7 @@ public class ChainReaction extends JPanel {
                 doesExplode(a + 1, b);
                 doesExplode(a, b + 1);
                 doesExplode(a - 1, b);
-            } else if (a > 0 && b == board[0].length) {
+            } else if (a > 0 && b == board[0].length - 1) {
                 board[a - 1][b].setValue(board[a - 1][b].getValue() + 1);
                 board[a][b - 1].setValue(board[a][b - 1].getValue() + 1);
                 board[a + 1][b].setValue(board[a + 1][b].getValue() + 1);
@@ -380,7 +381,7 @@ public class ChainReaction extends JPanel {
                 doesExplode(a + 1, b);
                 doesExplode(a, b + 1);
                 doesExplode(a, b - 1);
-            } else {
+            } else if(a == board.length - 1 && b > 0){
                 board[a][b - 1].setValue(board[a][b - 1].getValue() + 1);
                 board[a - 1][b].setValue(board[a - 1][b].getValue() + 1);
                 board[a][b + 1].setValue(board[a][b + 1].getValue() + 1);
@@ -418,19 +419,28 @@ public class ChainReaction extends JPanel {
 
     private boolean isGameOver() {
         int x;
-        int[] gameEnd = new int[8];
-        for (x = 0; x < 8; x++) {
+        ArrayList<Integer> gameEnd = new ArrayList<>(8);
+        for(x = 0;  x < 8; x++){
+            gameEnd.add(0);
+        }
+        for (x = 0; x < gameEnd.size() - 1; x++) {
             for (int a = 0; a < 11; a++) {
                 for (int b = 0; b < 11; b++) {
                     if (board[a][b].getBallColor() != null) {
-                        if ((board[a][b].getBallColor().equals(colors[x]))) {
-                            gameEnd[x]++;
+                        if ((board[a][b].getBallColor().equals(colors.get(x)))) {
+                            gameEnd.set(x, gameEnd.get(x)+ 1);
                         }
                     }
                 }
             }
+            if(gameEnd.get(x) == 0 && x <= playerList.size() - 1){
+                playerList.remove(x);
+                gameEnd.remove(x);
+                playerAmount--;
+                colors.remove(x);
+            }
         }
-        if (gameEnd[0] >= 1 && gameEnd[1] == 0 && gameEnd[2] == 0 && gameEnd[3] == 0 && gameEnd[4] == 0 && gameEnd[5] == 0 && gameEnd[6] == 0 && gameEnd[7] == 0) {
+        /*if (gameEnd[0] >= 1 && gameEnd[1] == 0 && gameEnd[2] == 0 && gameEnd[3] == 0 && gameEnd[4] == 0 && gameEnd[5] == 0 && gameEnd[6] == 0 && gameEnd[7] == 0) {
             return true;
         } else if (gameEnd[0] == 0 && gameEnd[1] >= 1 && gameEnd[2] == 0 && gameEnd[3] == 0 && gameEnd[4] == 0 && gameEnd[5] == 0 && gameEnd[6] == 0 && gameEnd[7] == 0) {
             return true;
@@ -446,8 +456,12 @@ public class ChainReaction extends JPanel {
             return true;
         } else if (gameEnd[0] == 0 && gameEnd[1] == 0 && gameEnd[2] == 0 && gameEnd[3] == 0 && gameEnd[4] == 0 && gameEnd[5] == 0 && gameEnd[6] == 0 && gameEnd[7] >= 1) {
             return true;
+        }*/
+        if(playerList.size() == 1){
+            return true;
         }
         return false;
+
     }
 
     private void endGame() {
@@ -503,7 +517,7 @@ public class ChainReaction extends JPanel {
             newGame.setBackground(Color.BLACK);
             newGame.setPreferredSize(new Dimension(70, 30));
             add(newGame, BorderLayout.CENTER);
-            playerSize = new JTextField("Player Number");
+            playerSize = new JTextField("3");
             add(playerSize, BorderLayout.SOUTH);
 
             repaint();
@@ -541,9 +555,7 @@ public class ChainReaction extends JPanel {
             this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         }
 
-
     }
-
     private class EndMenu extends JPanel {
         public EndMenu() {
             setBackground(Color.BLACK);
@@ -563,7 +575,3 @@ public class ChainReaction extends JPanel {
         }
     }
 }
-
-
-
-
